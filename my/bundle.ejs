@@ -1,0 +1,21 @@
+;(function (mapping) {
+  function require(id) {
+    const [fn, map] = mapping[id]
+    const module = {
+      exports: {},
+    }
+    function localRequire(filaPath) {
+      const id = map[filaPath]
+      return require(id)
+    }
+    fn(localRequire, module, module.exports) // 这里调用可能会重写module.exports
+    return module.exports
+  }
+  require(0)
+})({
+    <% data.forEach((info) => { %>
+        "<%- info['id'] %>": [function (require, module, exports) {
+            <%- info['code'] %> 
+        }, <%- JSON.stringify(info['mapping']) %> ],
+    <%  }) %>
+})
