@@ -5,6 +5,8 @@ import parser from "@babel/parser"
 import traverse from "@babel/traverse"
 import { transformFromAstSync } from "babel-core"
 import { jsonLoader } from "./jsonLoader.js"
+import { changeOutputPath } from "./changeOutputPath.js"
+import { SyncHook } from "tapable"
 
 let id = 0
 
@@ -17,6 +19,11 @@ const webpackConfig = {
       },
     ],
   },
+  plugins: [new changeOutputPath()],
+}
+
+const hooks = {
+  emitFile: new SyncHook(["context"]),
 }
 
 function createAsset(filePath) {
@@ -78,6 +85,16 @@ function createGraph() {
   }
   return queue
 }
+
+function initPlugin() {
+  const plugins = webpackConfig.plugins
+  plugins.forEach((plugin) => {
+    // 注册事件
+    plugin.apply(hooks)
+  })
+}
+initPlugin()
+
 const graph = createGraph()
 
 function build(graph) {
@@ -91,6 +108,15 @@ function build(graph) {
     }
   })
   const code = ejs.render(template, { data })
-  fs.writeFileSync("./dist/bundle.js", code)
+
+  let outputPath = "./dist/bundle.js"
+  const context = {
+    changeOutputPath(path) {
+      outputPath = path
+    },
+  }
+  // 执行事件
+  hooks.emitFile.call(context)
+  fs.writeFileSync(outputPath, code)
 }
 build(graph)
