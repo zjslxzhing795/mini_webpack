@@ -5,6 +5,8 @@ import babelTraverse from "@babel/traverse"
 import { transformFromAst } from "babel-core"
 import ejs from "ejs"
 import { jsonLoader } from "./jsonLoader.js"
+import { ChangeOutputPath } from "./changeOutputPathPlugin.js"
+import { SyncHook } from "tapable"
 
 let id = 0
 const webpackConfig = {
@@ -15,6 +17,7 @@ const webpackConfig = {
         use: [jsonLoader],
       },
     ],
+    plugins: [new ChangeOutputPath()],
   },
 }
 function createAsset(filePath) {
@@ -91,6 +94,19 @@ function build(graph) {
     return { filePath, code, id, mapping }
   })
   const code = ejs.render(template, { data })
-  fs.writeFileSync("./my/dist/bundle.js", code)
+  let myPath = "./my/dist/bundle.js"
+  // init plugin
+  const plugins = webpackConfig.module.plugins
+  const hooks = {
+    changeOutputPath: new SyncHook(["changePath"]),
+  }
+  const fn = () => {
+    console.log("ccc")
+    myPath = "./my/dist/zj.js"
+  }
+  plugins.forEach((plugin) => {
+    plugin.apply({ hooks, fn })
+  })
+  fs.writeFileSync(myPath, code)
 }
 build(graph)
